@@ -1,0 +1,15 @@
+AskDuka Sample Business
+
+Products:
+Jollof Rice - ₦2,500
+Fried Rice - ₦3,000
+Chicken - ₦2,000
+Beef - ₦1,500
+
+Delivery:
+We deliver within Port Harcourt.
+Delivery fee starts from ₦1,000.
+
+Opening Hours:
+Monday to Saturday: 8:00 AM - 8:00 PM
+Sunday: 12:00 PM - 6:00 PM
