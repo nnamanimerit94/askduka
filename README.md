@@ -10,26 +10,45 @@ It also documents the development process, including problems encountered, appro
 
 ## Table of Contents
 
-* [Member 2 Responsibility](#member-2-responsibility)
-* [Final Architecture](#final-architecture)
-* [Technology Stack](#technology-stack)
-* [Project Structure](#project-structure)
-* [Database Layer](#database-layer)
-* [Database Schema](#database-schema)
-* [Document Ingestion](#document-ingestion)
-* [Document Parsing](#document-parsing)
-* [Text Chunking](#text-chunking)
-* [Embeddings](#embeddings)
-* [Vector Retrieval](#vector-retrieval)
-* [Repository Layer](#repository-layer)
-* [Testing](#testing)
-* [Development Journey](#development-journey)
-* [Problems Encountered and Solutions](#problems-encountered-and-solutions)
-* [Removed Experiments](#removed-experiments)
-* [Security and Configuration Cleanup](#security-and-configuration-cleanup)
-* [Final Validation](#final-validation)
-* [Lessons Learned](#lessons-learned)
-* [Future Integration](#future-integration)
+- [Member 2 Responsibility](#member-2-responsibility)
+- [Final Architecture](#final-architecture)
+- [Technology Stack](#technology-stack)
+- [Local Development Setup](#local-development-setup)
+- [Project Structure](#project-structure)
+- [Database Layer](#database-layer)
+- [Database Schema](#database-schema)
+- [pgvector](#pgvector)
+- [Document Ingestion](#document-ingestion)
+- [Document Parsing](#document-parsing)
+- [Text Chunking](#text-chunking)
+- [Embeddings](#embeddings)
+- [Document Embeddings](#document-embeddings)
+- [Query Embeddings](#query-embeddings)
+- [Embedding Validation](#embedding-validation)
+- [Vector Retrieval](#vector-retrieval)
+- [Repository Layer](#repository-layer)
+- [Database Models](#database-models)
+- [Migration System](#migration-system)
+- [Development Journey](#development-journey)
+- [Initial Embedding Approach](#initial-embedding-approach)
+- [Why the Embedding Approach Changed](#why-the-embedding-approach-changed)
+- [The 1024 → 384 Problem](#the-1024--384-problem)
+- [Retrieval Test Failure](#retrieval-test-failure)
+- [Embedding Test Failure](#embedding-test-failure)
+- [Temporary OpenAI/Ollama Experiments](#temporary-openaiollama-experiments)
+- [RAG Tests Removed](#rag-tests-removed)
+- [Other Out-of-Scope Components](#other-out-of-scope-components)
+- [Requirements Cleanup](#requirements-cleanup)
+- [Configuration Cleanup](#configuration-cleanup)
+- [Security and Configuration Cleanup](#security-and-configuration-cleanup)
+- [Testing](#testing)
+- [Final Test Result](#final-test-result)
+- [Final Validation](#final-validation)
+- [What Member 2 Delivers](#what-member-2-delivers)
+- [What Is NOT Included](#what-is-not-included)
+- [Lessons Learned](#lessons-learned)
+- [Future Integration](#future-integration)
+- [Final Status](#final-status)
 
 ---
 
@@ -65,7 +84,7 @@ The current Member 2 pipeline is:
 Business Document
        │
        ▼
-   Parser
+    Parser
        │
        ▼
    Plain Text
@@ -83,13 +102,13 @@ Sentence Transformer
 384-Dimensional Embeddings
        │
        ▼
- PostgreSQL + pgvector
+PostgreSQL + pgvector
        │
        ▼
- Vector Similarity Search
+Vector Similarity Search
        │
        ▼
- Relevant Document Chunks
+Relevant Document Chunks
 ```
 
 The retrieval layer intentionally stops at returning relevant chunks.
@@ -100,20 +119,141 @@ LLM generation and final answer generation are handled by other members of the p
 
 # Technology Stack
 
-| Component            | Technology                               |
-| -------------------- | ---------------------------------------- |
-| Database             | PostgreSQL                               |
-| Vector Database      | PostgreSQL + pgvector                    |
-| ORM                  | SQLAlchemy                               |
-| PostgreSQL Driver    | psycopg                                  |
-| PDF Parsing          | pypdf                                    |
-| Embeddings           | Sentence Transformers                    |
-| Embedding Model      | `sentence-transformers/all-MiniLM-L6-v2` |
-| Embedding Dimension  | 384                                      |
-| Numerical Processing | NumPy                                    |
-| Testing              | pytest                                   |
-| Configuration        | python-dotenv                            |
-| Python               | Python 3.12+                             |
+| Component | Technology |
+|---|---|
+| Database Provider | Neon |
+| Database | PostgreSQL |
+| Vector Database | PostgreSQL + pgvector |
+| ORM | SQLAlchemy |
+| PostgreSQL Driver | `psycopg[binary]` |
+| PDF Parsing | pypdf |
+| Embeddings | Sentence Transformers |
+| Embedding Model | `sentence-transformers/all-MiniLM-L6-v2` |
+| Embedding Dimension | 384 |
+| Numerical Processing | NumPy |
+| Testing | pytest |
+| Configuration | python-dotenv |
+| Python | Python 3.12+ |
+
+---
+
+# Local Development Setup
+
+## Requirements
+
+Before running the project locally, make sure the following are installed:
+
+- Python 3.12+
+- Git
+- Access to the team's shared Neon PostgreSQL database
+
+---
+
+## Clone the Repository
+
+```bash
+git clone https://github.com/nnamanimerit94/askduka.git
+cd askduka
+```
+
+---
+
+## Create and Activate a Virtual Environment
+
+Create the virtual environment:
+
+```bash
+python3 -m venv .venv
+```
+
+Activate it:
+
+```bash
+source .venv/bin/activate
+```
+
+---
+
+## Install Dependencies
+
+Install the project dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+Then install the project itself in editable mode:
+
+```bash
+pip install -e .
+```
+
+Editable installation allows imports such as:
+
+```python
+from backend.app.db.models import ...
+```
+
+to work correctly when commands are run from the repository root.
+
+---
+
+## Environment Configuration
+
+Create a local `.env` file:
+
+```bash
+touch .env
+```
+
+Add the database configuration provided by the project team:
+
+```env
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST/DATABASE?sslmode=require
+
+EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+EMBEDDING_DIMENSION=384
+```
+
+The project uses the team's shared **Neon PostgreSQL** database.
+
+### Important
+
+Do not commit `.env` to Git.
+
+Do not share database credentials publicly.
+
+The repository contains `.env.example` as a safe configuration template.
+
+---
+
+## Run Database Migration
+
+Always run the migration from the repository root:
+
+```bash
+python database/run_migration.py
+```
+
+Expected output:
+
+```text
+Running migration: 001_initial_schema.sql
+Completed: 001_initial_schema.sql
+All migrations completed successfully.
+```
+
+---
+
+## Run Tests
+
+Run the complete test suite:
+
+```bash
+pytest -v
+```
+
+All tests should pass before submitting changes.
 
 ---
 
@@ -219,11 +359,11 @@ The `documents` table stores uploaded business documents.
 
 Important fields include:
 
-* `business_id`
-* `filename`
-* `file_type`
-* `status`
-* timestamps
+- `business_id`
+- `filename`
+- `file_type`
+- `status`
+- timestamps
 
 Each document belongs to a business.
 
@@ -237,12 +377,12 @@ The `document_chunks` table stores smaller pieces of documents.
 
 Each chunk contains:
 
-* the document ID
-* chunk index
-* chunk text
-* embedding
-* metadata
-* creation timestamp
+- the document ID
+- chunk index
+- chunk text
+- embedding
+- metadata
+- creation timestamp
 
 The embedding column is:
 
@@ -288,16 +428,16 @@ The pipeline is:
 Input File
    │
    ▼
-Parser
+ Parser
    │
    ▼
 Extracted Text
    │
    ▼
-Chunker
+ Chunker
    │
    ▼
-Chunks
+ Chunks
    │
    ▼
 Embeddings
@@ -326,8 +466,8 @@ The purpose of the parser is to convert source documents into text before chunki
 
 This separation is important because parsing and chunking solve different problems:
 
-* **Parser:** extracts text from the original document.
-* **Chunker:** divides extracted text into manageable pieces.
+- **Parser:** extracts text from the original document.
+- **Chunker:** divides extracted text into manageable pieces.
 
 ---
 
@@ -377,12 +517,12 @@ Embedding Dimension = 384
 
 This decision was made because the team wanted a solution that:
 
-* runs locally
-* does not require an external embedding API
-* does not require an API key
-* has no per-request embedding cost
-* is simple to deploy
-* is suitable for semantic retrieval
+- runs locally
+- does not require an external embedding API
+- does not require an API key
+- has no per-request embedding cost
+- is simple to deploy
+- is suitable for semantic retrieval
 
 ---
 
@@ -460,14 +600,14 @@ The repository provides the data-access interface between application code and P
 
 It contains operations for:
 
-* creating businesses
-* creating documents
-* creating document chunks
-* retrieving businesses
-* retrieving documents
-* retrieving chunks
-* updating document status
-* performing vector similarity searches
+- creating businesses
+- creating documents
+- creating document chunks
+- retrieving businesses
+- retrieving documents
+- retrieving chunks
+- updating document status
+- performing vector similarity searches
 
 This keeps database-specific operations separated from the rest of the application.
 
@@ -505,13 +645,13 @@ database/migrations/
 
 The initial migration creates:
 
-* the `vector` extension
-* businesses table
-* documents table
-* document chunks table
-* foreign keys
-* constraints
-* indexes
+- the `vector` extension
+- businesses table
+- documents table
+- document chunks table
+- foreign keys
+- constraints
+- indexes
 
 The migration runner:
 
@@ -520,6 +660,8 @@ database/run_migration.py
 ```
 
 loads SQL migration files and executes them against the configured PostgreSQL database.
+
+The project uses a lightweight custom SQL migration runner rather than Alembic.
 
 The initial migration was also made safe to execute repeatedly by using:
 
@@ -579,12 +721,12 @@ This worked as an early experiment, but the team later decided that embeddings s
 
 The project moved away from the external embedding API because the team wanted:
 
-* local embeddings
-* no embedding API costs
-* no external embedding API dependency
-* simpler local development
-* reproducible embeddings
-* a known 384-dimensional vector format
+- local embeddings
+- no embedding API costs
+- no external embedding API dependency
+- simpler local development
+- reproducible embeddings
+- a known 384-dimensional vector format
 
 The final model became:
 
@@ -716,7 +858,7 @@ Running the full test suite therefore produced:
 ImportError: cannot import name 'rag'
 ```
 
-Instead of recreating `rag.py simply to satisfy the test`, the RAG test was removed from the Member 2 branch.
+Instead of recreating `rag.py` simply to satisfy the test, the RAG test was removed from the Member 2 branch.
 
 This preserved the team's separation of responsibilities.
 
@@ -747,11 +889,11 @@ The original dependency file contained dependencies from multiple experiments an
 
 It included packages associated with:
 
-* Voyage AI
-* OpenAI
-* Ollama-related experiments
-* LangChain
-* other temporary work
+- Voyage AI
+- OpenAI
+- Ollama-related experiments
+- LangChain
+- other temporary work
 
 The dependency list was cleaned so that the Member 2 branch directly declares the dependencies needed for its implementation.
 
@@ -759,13 +901,23 @@ Final direct requirements:
 
 ```text
 SQLAlchemy==2.0.52
-psycopg==3.3.5
+psycopg[binary]==3.3.5
 python-dotenv==1.2.3
 pypdf==6.18.0
 sentence-transformers==6.0.1
 numpy==2.5.3
 pytest==9.1.1
 ```
+
+The `binary` extra for psycopg provides a packaged PostgreSQL client implementation, reducing the need for a separately installed system `libpq` dependency during local development.
+
+There is one dependency file at the repository root:
+
+```text
+requirements.txt
+```
+
+The project does not maintain a separate backend requirements file.
 
 ---
 
@@ -777,14 +929,18 @@ The example environment was cleaned.
 
 The final `.env.example` contains:
 
-```text
-DATABASE_URL=your_database_url
+```env
+DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/DATABASE
 
 EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
 EMBEDDING_DIMENSION=384
 ```
 
 No real secrets are included.
+
+The actual database credentials are kept only in the developer's local `.env` file.
+
+The team uses the shared Neon PostgreSQL database.
 
 ---
 
@@ -808,7 +964,7 @@ This prevents local secrets and development artifacts from being committed.
 
 During development, API credentials belonging to temporary experiments were exposed in a terminal output.
 
-Those credentials should be considered compromised and must be revoked/rotated.
+Those credentials should be considered compromised and must be revoked or rotated.
 
 They are not included in the final project files.
 
@@ -845,19 +1001,13 @@ The PDF fixture was verified as a valid PDF document.
 The complete test suite was executed using:
 
 ```bash
-pytest -q
+pytest -v
 ```
 
 Final result:
 
 ```text
 30 passed
-```
-
-The final test run completed successfully with:
-
-```text
-30 passed in 66.77s
 ```
 
 This confirms that the current Member 2 implementation passes the complete test suite available in the branch.
@@ -868,7 +1018,7 @@ This confirms that the current Member 2 implementation passes the complete test 
 
 Before preparing the branch for the pull request, the following checks were performed.
 
-### Old embedding/provider references
+## Old Embedding/Provider References
 
 The repository was scanned for:
 
@@ -882,10 +1032,14 @@ VECTOR(1024)
 
 No unwanted references remained in the Member 2 implementation, database, tests, requirements, or example environment.
 
-### Tests
+---
+
+## Tests
+
+The complete test suite was executed using:
 
 ```bash
-pytest -q
+pytest -v
 ```
 
 Result:
@@ -894,7 +1048,11 @@ Result:
 30 passed
 ```
 
-### Migration
+---
+
+## Migration
+
+The database migration was executed using:
 
 ```bash
 python database/run_migration.py
@@ -908,7 +1066,41 @@ Completed: 001_initial_schema.sql
 All migrations completed successfully.
 ```
 
-### PDF fixture
+---
+
+## Shared Neon Database Validation
+
+The project was configured locally to use the team's shared Neon PostgreSQL database.
+
+The database connection was verified successfully using:
+
+```sql
+SELECT 1;
+```
+
+The migration was then executed against the shared Neon database:
+
+```bash
+python database/run_migration.py
+```
+
+The complete test suite was subsequently executed against the Neon database:
+
+```bash
+pytest -v
+```
+
+Result:
+
+```text
+30 passed
+```
+
+This confirms that the current Member 2 implementation works successfully against the team's shared Neon PostgreSQL database.
+
+---
+
+## PDF Fixture
 
 The sample PDF was checked and confirmed to be:
 
@@ -938,7 +1130,7 @@ The completed Member 2 contribution provides the project with:
           Sentence Transformer
                     │
                     ▼
-             384-D Vector
+              384-D Vector
                     │
                     ▼
           PostgreSQL + pgvector
@@ -958,17 +1150,17 @@ The output of the retrieval layer can then be consumed by the higher-level appli
 
 The following are intentionally outside this Member 2 implementation:
 
-* LLM generation
-* Claude API integration
-* OpenAI generation
-* Ollama generation
-* Prompt orchestration
-* Final answer generation
-* RAG response generation
-* WhatsApp integration
-* User interface
-* Admin dashboard
-* Authentication
+- LLM generation
+- Claude API integration
+- OpenAI generation
+- Ollama generation
+- Prompt orchestration
+- Final answer generation
+- RAG response generation
+- WhatsApp integration
+- User interface
+- Admin dashboard
+- Authentication
 
 These responsibilities belong to other parts of the project.
 
@@ -976,7 +1168,7 @@ These responsibilities belong to other parts of the project.
 
 # Lessons Learned
 
-## 1. Embedding dimensions matter
+## 1. Embedding Dimensions Matter
 
 Changing an embedding model can require database changes.
 
@@ -984,7 +1176,7 @@ If the model generates 384 dimensions, the database vector column must also supp
 
 ---
 
-## 2. Test data must match production assumptions
+## 2. Test Data Must Match Production Assumptions
 
 A retrieval test using 1024-dimensional vectors is incompatible with a 384-dimensional production model.
 
@@ -992,7 +1184,7 @@ Test fixtures must evolve with the implementation.
 
 ---
 
-## 3. Local embeddings can simplify development
+## 3. Local Embeddings Can Simplify Development
 
 Using Sentence Transformers means embeddings can be generated locally without an external embedding API.
 
@@ -1000,7 +1192,7 @@ This reduces external dependencies and API costs.
 
 ---
 
-## 4. Separation of responsibilities matters
+## 4. Separation of Responsibilities Matters
 
 It was tempting to keep RAG and LLM code inside the same branch simply because it interacted with retrieval.
 
@@ -1025,7 +1217,7 @@ makes team development cleaner.
 
 ---
 
-## 5. Temporary experiments should eventually be removed
+## 5. Temporary Experiments Should Eventually Be Removed
 
 During development, several approaches were tested.
 
@@ -1035,13 +1227,37 @@ Removing abandoned experiments keeps the production code easier to understand an
 
 ---
 
-## 6. Database migrations should be treated carefully
+## 6. Database Migrations Should Be Treated Carefully
 
 Database changes can affect existing data and application compatibility.
 
 The vector-dimension change was handled carefully because existing embeddings were based on the old dimensionality.
 
 Database migrations should always be considered together with the application code that consumes the database.
+
+---
+
+## 7. Database Provider Changes Should Be Validated
+
+The team initially developed against a PostgreSQL-compatible environment and later standardized on Neon.
+
+The implementation did not require code changes for the provider switch.
+
+The local environment was updated to use the shared Neon PostgreSQL database, followed by:
+
+```bash
+python database/run_migration.py
+```
+
+and:
+
+```bash
+pytest -v
+```
+
+Both completed successfully.
+
+This confirms that the database layer and retrieval foundation operate correctly against the team's shared database environment.
 
 ---
 
@@ -1087,35 +1303,37 @@ The remaining steps can be implemented independently by the appropriate team mem
 
 **Member 2 implementation: COMPLETE**
 
-### Completed
+## Completed
 
-* [x] PostgreSQL database schema
-* [x] pgvector extension
-* [x] SQLAlchemy models
-* [x] Database connection
-* [x] Repository layer
-* [x] Database migration
-* [x] PDF parsing
-* [x] Text parsing
-* [x] Text chunking
-* [x] Sentence Transformer embeddings
-* [x] 384-dimensional vectors
-* [x] Vector storage
-* [x] Cosine similarity retrieval
-* [x] Retrieval tests
-* [x] Ingestion tests
-* [x] Embedding tests
-* [x] Configuration cleanup
-* [x] Dependency cleanup
-* [x] Temporary LLM/RAG experiments removed
-* [x] Out-of-scope tests removed
-* [x] Security configuration cleanup
-* [x] Full test suite passing
+- [x] PostgreSQL database schema
+- [x] Neon PostgreSQL integration
+- [x] pgvector extension
+- [x] SQLAlchemy models
+- [x] Database connection
+- [x] Repository layer
+- [x] Database migration
+- [x] PDF parsing
+- [x] Text parsing
+- [x] Text chunking
+- [x] Sentence Transformer embeddings
+- [x] 384-dimensional vectors
+- [x] Vector storage
+- [x] Cosine similarity retrieval
+- [x] Retrieval tests
+- [x] Ingestion tests
+- [x] Embedding tests
+- [x] Configuration cleanup
+- [x] Dependency cleanup
+- [x] Temporary LLM/RAG experiments removed
+- [x] Out-of-scope tests removed
+- [x] Security configuration cleanup
+- [x] Shared Neon database validation
+- [x] Full test suite passing
 
-### Final Test Result
+## Final Test Result
 
 ```text
 30 passed
 ```
 
-The Member 2 branch is ready for review and integration with the remaining AskDuka components.
+The Member 2 branch has been validated against the team's shared Neon PostgreSQL database and is ready for integration with the remaining AskDuka components.
