@@ -35,14 +35,13 @@ def retrieve(
             query_embedding,
             limit=limit,
         )
-
         return [
             {
-                "chunk": chunk,
-                "similarity": similarity,
+                "chunk_text": chunk.chunk_text,
+                "source_document": chunk.document.filename,
+                "similarity": similarity
             }
             for chunk, similarity in results
         ]
-
     finally:
         session.close()
