@@ -4,7 +4,16 @@ from sentence_transformers import SentenceTransformer
 EMBEDDING_MODEL = "sentence-transformers/all-MiniLM-L6-v2"
 EMBEDDING_DIMENSION = 384
 
-_model = SentenceTransformer(EMBEDDING_MODEL)
+_model = None
+
+
+def get_model():
+    global _model
+
+    if _model is None:
+        _model = SentenceTransformer(EMBEDDING_MODEL)
+
+    return _model
 
 
 def embed_documents(texts: list[str]) -> list[list[float]]:
@@ -17,7 +26,9 @@ def embed_documents(texts: list[str]) -> list[list[float]]:
     if not texts:
         return []
 
-    embeddings = _model.encode_document(
+    model = get_model()
+
+    embeddings = model.encode_document(
         texts,
         convert_to_numpy=True,
     )
@@ -32,7 +43,9 @@ def embed_query(text: str) -> list[float]:
     if not text or not text.strip():
         raise ValueError("Query text cannot be empty.")
 
-    embedding = _model.encode_query(
+    model = get_model()
+
+    embedding = model.encode_query(
         text,
         convert_to_numpy=True,
     )
