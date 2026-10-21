@@ -1,7 +1,6 @@
 import uuid
 
 from backend.app.db.database import SessionLocal
-from backend.app.db.models import DocumentChunk
 from backend.app.db.repository import search_document_chunks
 from backend.app.ingestion.embeddings import embed_query
 
@@ -35,11 +34,11 @@ def retrieve(
             query_embedding,
             limit=limit,
         )
+
         return [
             {
-                "chunk_text": chunk.chunk_text,
-                "source_document": chunk.document.filename,
-                "similarity": similarity
+                "chunk": chunk,
+                "similarity": similarity,
             }
             for chunk, similarity in results
         ]
