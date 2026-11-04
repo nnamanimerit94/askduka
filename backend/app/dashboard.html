@@ -21,7 +21,7 @@ button:disabled{opacity:.6}small{color:#566d62}pre{white-space:pre-wrap;overflow
 <label for="filename">Catalog filename</label><input id="filename" value="catalog.txt">
 <label for="content">Products, prices, delivery and opening hours</label><textarea id="content" maxlength="50000" placeholder="20-inch wig: ₦120,000&#10;Lagos delivery: 1–2 days&#10;Open Monday to Saturday"></textarea>
 <button id="save">Save catalog</button></section>
-<section><h2>3. Saved information</h2><p id="status" role="status" aria-live="polite"></p><p id="error" role="alert"></p><pre id="catalog">No catalog loaded yet.</pre></section>
+<section><h2>3. Test a customer question</h2><p><small>Test against your saved catalog. This uses fact matching, not an AI model.</small></p><label for="question">Customer question</label><input id="question" maxlength="1000" placeholder="How much is the 20 inch wig?"><button id="ask">Test answer</button><pre id="answer" aria-live="polite">No question tested yet.</pre></section>\n<section><h2>4. Saved information</h2><p id="status" role="status" aria-live="polite"></p><p id="error" role="alert"></p><pre id="catalog">No catalog loaded yet.</pre></section>
 </main><script>
 const el=id=>document.getElementById(id);
 function show(message,isError=false){el('status').textContent=isError?'':message;el('error').textContent=isError?message:''}
@@ -48,5 +48,5 @@ el('save').onclick=async()=>{try{
  const data=await api('/admin/businesses/'+encodeURIComponent(id)+'/catalog','POST',{filename:el('filename').value,content:el('content').value});
  show('Saved '+data.lines_saved+' entries.');await load();
 }catch(e){show(e.message,true)}};
-el('load').onclick=async()=>{try{await load()}catch(e){show(e.message,true)}};
+el('load').onclick=async()=>{try{await load()}catch(e){show(e.message,true)}};\nel('ask').onclick=async()=>{try{\n const id=el('businessId').value.trim();if(!id)throw Error('Create or enter a business ID first.');\n const question=el('question').value.trim();if(!question)throw Error('Enter a customer question first.');\n const data=await api('/admin/businesses/'+encodeURIComponent(id)+'/ask','POST',{question});\n el('answer').textContent=data.answer;show(data.confidence==='catalog_match'?'Answer found in saved catalog.':'No clear catalog match; fallback shown.');\n}catch(e){show(e.message,true)}};
 </script></body></html>
