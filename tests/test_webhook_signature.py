@@ -1,7 +1,7 @@
 import hashlib
 import hmac
 
-from backend.app.webhook.router import valid_meta_signature
+from backend.app.webhook.signature import valid_meta_signature
 
 
 def test_signature_valid():
