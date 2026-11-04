@@ -1,0 +1,17 @@
+name: AskDuka Preview Tests
+on:
+  pull_request:
+  push:
+    branches: [main]
+jobs:
+  preview-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install preview dependencies
+        run: pip install fastapi==0.141.1 httpx==0.28.1 pytest==9.1.1
+      - name: Run isolated preview tests
+        run: python -m pytest tests/test_preview.py -q
