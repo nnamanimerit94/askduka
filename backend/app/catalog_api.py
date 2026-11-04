@@ -11,7 +11,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
-from backend.app.db.database import SessionLocal
 from backend.app.db.models import Business, Document, DocumentChunk
 
 router = APIRouter(prefix="/admin", tags=["business-management"])
@@ -24,6 +23,8 @@ def admin_auth(x_admin_key: str | None = Header(default=None)):
 
 
 def db_session():
+    from backend.app.db.database import SessionLocal
+
     session = SessionLocal()
     try:
         yield session
