@@ -14,6 +14,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import Business, Document, DocumentChunk
+from backend.app.catalog_answers import answer_from_catalog
 
 router = APIRouter(prefix="/admin", tags=["business-management"])
 
@@ -97,3 +98,28 @@ def dashboard():
     """Display the admin UI; all data operations still require an API key."""
     return HTMLResponse((Path(__file__).parent / "dashboard.html").read_text(encoding="utf-8"),
                         headers={"Cache-Control": "no-store", "Content-Security-Policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'", "X-Content-Type-Options": "nosniff"})
+
+
+class CatalogQuestion(BaseModel):
+    question: str = Field(min_length=1, max_length=1000)
+
+
+@router.post("/businesses/{business_id}/ask", dependencies=[Depends(admin_auth)])
+def ask_catalog(business_id: uuid.UUID, request: CatalogQuestion, db: Session = Depends(db_session)):
+    """Internal-only catalog Q&A. No AI model or public customer access yet."""
+    if db.get(Business, business_id) is None:
+        raise HTTPException(status_code=404, detail="Business not found")
+    rows = (
+        db.query(DocumentChunk.chunk_text)
+        .join(Document, Document.id == DocumentChunk.document_id)
+        .filter(Document.business_id == business_id)
+        .order_by(Document.created_at, DocumentChunk.chunk_index)
+        .all()
+    )
+    result = answer_from_catalog(request.question, [row[0] for row in rows])
+    return {
+        "business_id": str(business_id),
+        "answer": result["answer"] or "I don't have that information. Please contact the business owner.",
+        "matched_lines": result["matched_lines"],
+        "confidence": "catalog_match" if result["answer"] else "fallback",
+    }
