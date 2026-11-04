@@ -2,7 +2,7 @@
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
-from backend.app.catalog_api import router
+from backend.app.catalog_api import router, db_session
 
 app = FastAPI()
 app.include_router(router)
@@ -36,9 +36,13 @@ def test_missing_server_secret_fails_closed(monkeypatch):
 
 def test_short_name_is_rejected_before_database_access(monkeypatch):
     monkeypatch.setenv("ASKDUKA_ADMIN_API_KEY", "test-secret")
-    response = client.post(
-        "/admin/businesses",
-        headers={"X-Admin-Key": "test-secret"},
-        json={"name": " "},
-    )
-    assert response.status_code == 422
+    app.dependency_overrides[db_session] = lambda: object()
+    try:
+        response = client.post(
+            "/admin/businesses",
+            headers={"X-Admin-Key": "test-secret"},
+            json={"name": " "},
+        )
+        assert response.status_code == 422
+    finally:
+        app.dependency_overrides.clear()
