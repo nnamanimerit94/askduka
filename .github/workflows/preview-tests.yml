@@ -14,4 +14,4 @@ jobs:
       - name: Install preview dependencies
         run: pip install fastapi==0.141.1 httpx==0.28.1 pytest==9.1.1 SQLAlchemy==2.0.52 psycopg[binary]==3.3.5
       - name: Run isolated preview tests
-        run: python -m pytest tests/test_preview.py tests/test_generation_provider.py tests/test_webhook_signature.py tests/test_catalog_api.py tests/test_catalog_postgres_integration.py tests/test_dashboard.py tests/test_admin_app.py -q
+        run: python -m pytest tests/test_preview.py tests/test_generation_provider.py tests/test_webhook_signature.py tests/test_catalog_api.py tests/test_catalog_postgres_integration.py tests/test_dashboard.py tests/test_admin_app.py tests/test_catalog_http_integration.py -q
