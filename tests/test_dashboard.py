@@ -20,3 +20,11 @@ def test_dashboard_does_not_disable_admin_auth(monkeypatch):
     monkeypatch.setenv("ASKDUKA_ADMIN_API_KEY", "expected-key")
     response = client.post("/admin/businesses", json={"name": "Demo Store"})
     assert response.status_code == 401
+
+
+def test_dashboard_has_customer_question_tester():
+    response = client.get("/admin/dashboard")
+    assert response.status_code == 200
+    assert 'id="question"' in response.text
+    assert 'id="ask"' in response.text
+    assert "/ask" in response.text
