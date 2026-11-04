@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AskDuka | Business Dashboard</title>
+<style>
+:root{font-family:system-ui,sans-serif;color:#17352c;background:#f1f6f3}*{box-sizing:border-box}body{margin:0}
+header{background:#124b39;color:white;padding:20px 5vw}header h1{margin:0}main{max-width:860px;margin:28px auto;padding:0 16px}
+section{background:white;padding:24px;border-radius:14px;margin:20px 0;box-shadow:0 3px 16px #1232}
+label{display:block;font-weight:600;margin:12px 0 6px}input,textarea{width:100%;padding:12px;border:1px solid #a5bcb2;border-radius:7px;font:inherit}
+textarea{min-height:150px}button{background:#176447;color:white;border:0;padding:12px 18px;border-radius:7px;cursor:pointer;margin-top:14px}
+button:disabled{opacity:.6}small{color:#566d62}pre{white-space:pre-wrap;overflow-wrap:anywhere;background:#eff7f1;padding:15px;border-radius:8px}
+#error{color:#9c2a2a}#status{color:#176447} .row{display:grid;grid-template-columns:1fr 1fr;gap:14px}@media(max-width:600px){.row{grid-template-columns:1fr}}
+</style></head><body><header><h1>AskDuka</h1><div>Business information dashboard — development</div></header>
+<main>
+<section><h2>Connect to your business</h2><p><small>Admin-only development tool. Your key is held in this browser tab's memory and is never saved by this page. Do not use on a shared device.</small></p>
+<label for="key">Administrator API key</label><input id="key" type="password" autocomplete="off" placeholder="Enter your administrator key">
+<label for="businessId">Existing business ID (optional)</label><input id="businessId" placeholder="UUID of your business">
+<button id="load">Load saved catalog</button></section>
+<section><h2>1. Register a business</h2><label for="name">Business name</label><input id="name" maxlength="120" placeholder="Example: Ada's Hair Store">
+<button id="register">Create business</button></section>
+<section><h2>2. Save business information</h2><p><small>Enter one fact per line. Saving creates a new catalog document; it does not overwrite previous entries.</small></p>
+<label for="filename">Catalog filename</label><input id="filename" value="catalog.txt">
+<label for="content">Products, prices, delivery and opening hours</label><textarea id="content" maxlength="50000" placeholder="20-inch wig: ₦120,000&#10;Lagos delivery: 1–2 days&#10;Open Monday to Saturday"></textarea>
+<button id="save">Save catalog</button></section>
+<section><h2>3. Saved information</h2><p id="status" role="status" aria-live="polite"></p><p id="error" role="alert"></p><pre id="catalog">No catalog loaded yet.</pre></section>
+</main><script>
+const el=id=>document.getElementById(id);
+function show(message,isError=false){el('status').textContent=isError?'':message;el('error').textContent=isError?message:''}
+async function api(path,method='GET',body=null){
+ const key=el('key').value;
+ if(!key)throw Error('Enter the administrator API key first.');
+ const response=await fetch(path,{method,headers:{'X-Admin-Key':key,'Content-Type':'application/json'},body:body?JSON.stringify(body):undefined});
+ let data;try{data=await response.json()}catch{throw Error('Unexpected server response')}
+ if(!response.ok)throw Error(typeof data.detail==='string'?data.detail:'Request failed ('+response.status+')');
+ return data;
+}
+async function load(){
+ const id=el('businessId').value.trim();if(!id)throw Error('Enter or create a business ID.');
+ const data=await api('/admin/businesses/'+encodeURIComponent(id)+'/catalog');
+ el('catalog').textContent=data.lines.length?data.lines.join('\n'):'No catalog entries saved yet.';
+ show('Loaded '+data.lines.length+' saved entries.');
+}
+el('register').onclick=async()=>{try{
+ const data=await api('/admin/businesses','POST',{name:el('name').value});
+ el('businessId').value=data.id;show('Business created: '+data.name+' ('+data.id+')');el('catalog').textContent='No catalog entries saved yet.';
+}catch(e){show(e.message,true)}};
+el('save').onclick=async()=>{try{
+ const id=el('businessId').value.trim();if(!id)throw Error('Create or enter a business ID first.');
+ const data=await api('/admin/businesses/'+encodeURIComponent(id)+'/catalog','POST',{filename:el('filename').value,content:el('content').value});
+ show('Saved '+data.lines_saved+' entries.');await load();
+}catch(e){show(e.message,true)}};
+el('load').onclick=async()=>{try{await load()}catch(e){show(e.message,true)}};
+</script></body></html>
