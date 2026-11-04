@@ -5,9 +5,11 @@ only when this router is included in a configured production application.
 """
 import hmac
 import os
+from pathlib import Path
 import uuid
 
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -88,3 +90,10 @@ def list_catalog(business_id: uuid.UUID, db: Session = Depends(db_session)):
         .all()
     )
     return {"business_id": str(business_id), "lines": [row[0] for row in rows]}
+
+
+@router.get("/dashboard", response_class=HTMLResponse, include_in_schema=False)
+def dashboard():
+    """Display the admin UI; all data operations still require an API key."""
+    return HTMLResponse((Path(__file__).parent / "dashboard.html").read_text(encoding="utf-8"),
+                        headers={"Cache-Control": "no-store", "Content-Security-Policy": "default-src 'self'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'", "X-Content-Type-Options": "nosniff"})
