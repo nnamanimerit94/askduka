@@ -42,7 +42,10 @@ class CatalogCreate(BaseModel):
 
 @router.post("/businesses", dependencies=[Depends(admin_auth)], status_code=201)
 def add_business(request: BusinessCreate, db: Session = Depends(db_session)):
-    business = Business(name=request.name.strip())
+    name = request.name.strip()
+    if len(name) < 2:
+        raise HTTPException(status_code=422, detail="Business name too short")
+    business = Business(name=name)
     db.add(business)
     db.commit()
     db.refresh(business)
