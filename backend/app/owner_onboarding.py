@@ -31,6 +31,8 @@ def onboard_new_business(session: Session, email: str, password: str, business_n
     try:
         session.add(owner)
         session.add(business)
+        # Flush parent rows before inserting the membership foreign keys.
+        session.flush()
         session.add(membership)
         session.commit()
     except IntegrityError as exc:
