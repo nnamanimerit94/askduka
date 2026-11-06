@@ -114,3 +114,24 @@ def test_list_documents_scopes_to_business(mock_get):
     mock_get.return_value = response
     assert api_client.list_documents("test-token", "business-123") == {"documents": []}
     assert mock_get.call_args.args[0].endswith("/api/businesses/business-123/documents")
+
+
+@patch("api_client.requests.post")
+def test_register_business_sends_new_business_details(mock_post):
+    response = Mock(ok=True)
+    response.json.return_value = {"owner_id": "owner-123", "business_id": "business-123"}
+    mock_post.return_value = response
+    result = api_client.register_business("owner@example.com", "secure password 1234", "My Shop")
+    assert result["business_id"] == "business-123"
+    assert mock_post.call_args.args[0].endswith("/api/auth/register-business")
+    assert mock_post.call_args.kwargs["json"]["business_name"] == "My Shop"
+
+
+@patch("api_client.requests.post")
+def test_register_business_disabled_backend_error(mock_post):
+    mock_post.return_value = Mock(ok=False, status_code=404)
+    try:
+        api_client.register_business("owner@example.com", "secure password 1234", "My Shop")
+        assert False, "Expected APIError"
+    except api_client.APIError as exc:
+        assert "404" in str(exc)
