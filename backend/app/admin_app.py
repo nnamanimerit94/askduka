@@ -9,6 +9,7 @@ authorization, rate limits, HTTPS and deployment security review.
 from fastapi import FastAPI
 from backend.app.catalog_api import router as catalog_router
 from backend.app.owner_auth_api import router as owner_auth_router
+from backend.app.owner_business_api import router as owner_business_router
 
 app = FastAPI(
     title="AskDuka Internal Administration",
@@ -18,6 +19,7 @@ app = FastAPI(
 )
 app.include_router(catalog_router)
 app.include_router(owner_auth_router)
+app.include_router(owner_business_router)
 
 
 @app.get("/health")
