@@ -1,6 +1,8 @@
+import os
+
 import streamlit as st
 
-from api_client import APIError, login, current_owner, revoke_session
+from api_client import APIError, login, current_owner, revoke_session, register_business
 
 
 def is_authenticated() -> bool:
@@ -75,5 +77,33 @@ def show_login() -> None:
 
             st.rerun()
 
+        except APIError as exc:
+            st.error(str(exc))
+
+    show_registration()
+
+
+def show_registration() -> None:
+    """Optional registration UI; must be enabled separately from backend signup."""
+    if os.getenv("ASKDUKA_SHOW_OWNER_SIGNUP") != "true":
+        return
+    st.divider()
+    st.subheader("Create a business account")
+    with st.form("register_business_form"):
+        business_name = st.text_input("Business name")
+        email = st.text_input("Registration email")
+        password = st.text_input("Create password (at least 12 characters)", type="password")
+        confirm = st.text_input("Confirm password", type="password")
+        submitted = st.form_submit_button("Create account")
+    if submitted:
+        if not business_name.strip() or not email.strip() or len(password) < 12:
+            st.error("Enter a business name, email and password of at least 12 characters.")
+            return
+        if password != confirm:
+            st.error("Passwords do not match.")
+            return
+        try:
+            register_business(email, password, business_name)
+            st.success("Business account created. Sign in above to continue.")
         except APIError as exc:
             st.error(str(exc))
