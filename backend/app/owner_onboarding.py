@@ -11,7 +11,7 @@ from backend.app.owner_registration import RegistrationError
 from backend.app.owner_security import hash_password
 
 
-_EMAIL = re.compile(r"^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$")
+_EMAIL = re.compile(r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
 
 
 def onboard_new_business(session: Session, email: str, password: str, business_name: str):
