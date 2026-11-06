@@ -41,12 +41,12 @@ def login(email: str, password: str) -> dict:
     return response.json()
 
 
-def upload_document(file, token: str) -> dict:
+def upload_document(file, token: str, business_id: str) -> dict:
     """Upload a business document."""
 
     try:
         response = requests.post(
-            f"{API_URL}/api/documents",
+            f"{API_URL}/api/businesses/{business_id}/documents",
             headers={
                 "Authorization": f"Bearer {token}",
             },
@@ -124,3 +124,33 @@ def revoke_session(token: str) -> None:
         raise APIError("Could not contact the server to log out.") from exc
     if not response.ok:
         raise APIError(f"Logout failed: {response.status_code}")
+
+
+def list_businesses(token: str) -> dict:
+    """List businesses this owner can access."""
+    try:
+        response = requests.get(
+            f"{API_URL}/api/businesses",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        raise APIError("Could not retrieve your businesses.") from exc
+    if not response.ok:
+        raise APIError(f"Business listing failed: {response.status_code}")
+    return response.json()
+
+
+def list_documents(token: str, business_id: str) -> dict:
+    """List documents for an authorized business."""
+    try:
+        response = requests.get(
+            f"{API_URL}/api/businesses/{business_id}/documents",
+            headers={"Authorization": f"Bearer {token}"},
+            timeout=10,
+        )
+    except requests.RequestException as exc:
+        raise APIError("Could not retrieve business documents.") from exc
+    if not response.ok:
+        raise APIError(f"Document listing failed: {response.status_code}")
+    return response.json()

@@ -64,14 +64,16 @@ def test_upload_document(mock_post):
 
     file = Mock()
 
-    file.name = "catalog.pdf"
-    file.type = "application/pdf"
+    file.name = "catalog.txt"
+    file.type = "text/plain"
 
     result = api_client.upload_document(
         file,
         "test-token",
+        "business-123",
     )
 
+    assert mock_post.call_args.args[0].endswith("/api/businesses/business-123/documents")
     assert result["document_id"] == "123"
     assert result["status"] == "processing"
 
@@ -94,3 +96,21 @@ def test_get_conversations(mock_get):
     )
 
     assert result["conversations"] == []
+
+
+@patch("api_client.requests.get")
+def test_list_businesses_uses_owner_token(mock_get):
+    response = Mock(ok=True)
+    response.json.return_value = {"businesses": [{"business_id": "business-123"}]}
+    mock_get.return_value = response
+    assert api_client.list_businesses("test-token")["businesses"][0]["business_id"] == "business-123"
+    assert mock_get.call_args.kwargs["headers"]["Authorization"] == "Bearer test-token"
+
+
+@patch("api_client.requests.get")
+def test_list_documents_scopes_to_business(mock_get):
+    response = Mock(ok=True)
+    response.json.return_value = {"documents": []}
+    mock_get.return_value = response
+    assert api_client.list_documents("test-token", "business-123") == {"documents": []}
+    assert mock_get.call_args.args[0].endswith("/api/businesses/business-123/documents")
