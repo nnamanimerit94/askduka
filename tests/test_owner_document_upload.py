@@ -41,7 +41,7 @@ def test_upload_rejects_unsupported_and_oversized_files():
     assert post_document("catalog.pdf", b"fake pdf").status_code == 422
     assert post_document("catalog.txt", b"x" * (256 * 1024 + 1)).status_code == 413
     assert post_document("catalog.txt", b"").status_code == 422
-    assert post_document("catalog.txt", b"\\xff").status_code == 422
+    assert post_document("catalog.txt", bytes([255])).status_code == 422
 
 
 def test_upload_persists_text_chunks_for_authorized_business():
