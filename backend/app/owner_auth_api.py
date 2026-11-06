@@ -46,7 +46,7 @@ def login(request: LoginRequest, http_request: Request, db: Session = Depends(db
     token = login_owner(db, request.email, request.password)
     if token is None:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    return {"access_token": token, "token_type": "bearer", "expires_in": 43200}
+    return {"access_token": token, "token": token, "token_type": "bearer", "expires_in": 43200}
 
 
 @router.get("/me")

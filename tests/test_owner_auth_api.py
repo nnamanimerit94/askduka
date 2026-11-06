@@ -22,6 +22,7 @@ def test_login_returns_token_and_invalid_credentials_are_generic():
         response = client.post("/api/auth/login", json={"email": "owner@example.com", "password": "long secure password"})
     assert response.status_code == 200
     assert response.json()["access_token"] == "opaque-token"
+    assert response.json()["token"] == "opaque-token"
     with patch("backend.app.owner_auth_api.login_owner", return_value=None):
         response = client.post("/api/auth/login", json={"email": "owner@example.com", "password": "wrong"})
     assert response.status_code == 401
