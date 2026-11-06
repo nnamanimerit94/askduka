@@ -50,7 +50,7 @@ async def upload_business_text_document(
     PDF/DOCX extraction is intentionally not supported by this endpoint yet.
     """
     filename = (file.filename or "").strip()
-    if not filename or len(filename) > 255 or "/" in filename or "\\\\" in filename or not filename.lower().endswith(".txt"):
+    if not filename or len(filename) > 255 or "/" in filename or chr(92) in filename or not filename.lower().endswith(".txt"):
         raise HTTPException(status_code=422, detail="Only .txt documents with safe filenames are supported")
     payload = await file.read(MAX_TEXT_BYTES + 1)
     if len(payload) > MAX_TEXT_BYTES:
