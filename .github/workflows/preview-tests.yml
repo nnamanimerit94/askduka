@@ -14,7 +14,7 @@ jobs:
       - name: Install preview dependencies
         run: pip install fastapi==0.141.1 httpx==0.28.1 pytest==9.1.1 SQLAlchemy==2.0.52 psycopg[binary]==3.3.5 python-multipart
       - name: Run isolated preview tests
-        run: python -m pytest tests/test_preview.py tests/test_generation_provider.py tests/test_webhook_signature.py tests/test_catalog_api.py tests/test_catalog_postgres_integration.py tests/test_dashboard.py tests/test_admin_app.py tests/test_catalog_http_integration.py tests/test_evidence.py tests/test_catalog_answers.py tests/test_owner_security.py tests/test_owner_models.py tests/test_owner_registration.py tests/test_owner_login.py tests/test_owner_sessions.py tests/test_owner_session_service.py tests/test_owner_auth_api.py tests/test_login_rate_limit.py tests/test_owner_business_api.py tests/test_owner_documents_api.py tests/test_owner_document_upload.py -q
+        run: python -m pytest tests/test_preview.py tests/test_generation_provider.py tests/test_webhook_signature.py tests/test_catalog_api.py tests/test_catalog_postgres_integration.py tests/test_dashboard.py tests/test_admin_app.py tests/test_catalog_http_integration.py tests/test_evidence.py tests/test_catalog_answers.py tests/test_owner_security.py tests/test_owner_models.py tests/test_owner_registration.py tests/test_owner_login.py tests/test_owner_sessions.py tests/test_owner_session_service.py tests/test_owner_auth_api.py tests/test_login_rate_limit.py tests/test_owner_business_api.py tests/test_owner_documents_api.py tests/test_owner_document_upload.py tests/test_owner_onboarding.py -q
   owner-auth-postgres-integration:
     runs-on: ubuntu-latest
     services:
