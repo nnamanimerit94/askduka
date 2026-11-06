@@ -3,12 +3,16 @@
 Do not mount this router in the public preview until rate limiting,
 HTTPS, cookie/token security, migrations and integration tests are complete.
 """
+import os
+
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from backend.app.owner_session_service import current_owner_id, login_owner, logout_owner
 from backend.app.login_rate_limit import login_limiter
+from backend.app.owner_onboarding import onboard_new_business
+from backend.app.owner_registration import RegistrationError
 
 router = APIRouter(prefix="/api/auth", tags=["owner-auth"])
 
@@ -64,3 +68,24 @@ def logout(token: str = Depends(bearer_token), db: Session = Depends(db_session)
         raise HTTPException(status_code=401, detail="Invalid or expired session")
     logout_owner(db, token)
     return {"logged_out": True}
+
+
+class OnboardRequest(BaseModel):
+    email: str = Field(min_length=3, max_length=254)
+    password: str = Field(min_length=12, max_length=1024)
+    business_name: str = Field(min_length=2, max_length=120)
+
+
+@router.post("/register-business", status_code=201)
+def register_business(request: OnboardRequest, http_request: Request, db: Session = Depends(db_session)):
+    """Opt-in internal onboarding. Disabled unless explicitly enabled in environment."""
+    if os.getenv("ASKDUKA_ENABLE_OWNER_SIGNUP") != "true":
+        raise HTTPException(status_code=404, detail="Not found")
+    client_ip = http_request.client.host if http_request.client else "unknown"
+    if not login_limiter.allow(client_ip):
+        raise HTTPException(status_code=429, detail="Too many attempts")
+    try:
+        owner_id, business_id = onboard_new_business(db, request.email, request.password, request.business_name)
+    except RegistrationError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {"owner_id": str(owner_id), "business_id": str(business_id)}
