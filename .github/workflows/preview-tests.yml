@@ -42,3 +42,14 @@ jobs:
         run: pip install pytest==9.1.1 SQLAlchemy==2.0.52 psycopg[binary]==3.3.5
       - name: Run owner authentication PostgreSQL integration test
         run: python -m pytest tests/test_owner_auth_postgres_integration.py tests/test_owner_auth_migrations.py -q
+  frontend-client-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install frontend client test dependencies
+        run: pip install pytest==9.1.1 requests python-dotenv
+      - name: Test Benoond frontend API client
+        run: cd dashboard && python -m pytest tests/test_api_client.py tests/test_auth_session_client.py -q
