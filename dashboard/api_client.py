@@ -154,3 +154,18 @@ def list_documents(token: str, business_id: str) -> dict:
     if not response.ok:
         raise APIError(f"Document listing failed: {response.status_code}")
     return response.json()
+
+
+def register_business(email: str, password: str, business_name: str) -> dict:
+    """Register a new owner and business when backend signup is enabled."""
+    try:
+        response = requests.post(
+            f"{API_URL}/api/auth/register-business",
+            json={"email": email, "password": password, "business_name": business_name},
+            timeout=15,
+        )
+    except requests.RequestException as exc:
+        raise APIError("Could not connect to the registration service.") from exc
+    if not response.ok:
+        raise APIError(f"Registration unavailable or unsuccessful: {response.status_code}")
+    return response.json()
