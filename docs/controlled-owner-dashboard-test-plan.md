@@ -6,6 +6,11 @@
 - Streamlit dashboard is in `dashboard/app.py`; it has not been deployed as a public customer service.
 - New registration requires both `ASKDUKA_ENABLE_OWNER_SIGNUP=true` on the internal API and `ASKDUKA_SHOW_OWNER_SIGNUP=true` on Streamlit. Keep both unset for normal deployments.
 
+## Safer owner API separation
+- The internal admin app includes catalog administration endpoints protected by an admin key. Never expose that whole app as the customer API.
+- A separate owner-only FastAPI application can mount only authentication, business and document routers. Keep it on localhost/private network during testing.
+- Restrict cross-origin requests to the dashboard origin if a browser-facing deployment is later approved. Avoid wildcard CORS with credentials.
+
 ## Prerequisites for an authorized isolated test
 1. Use a disposable PostgreSQL database with pgvector available. Back up any existing data; do not run schema changes against live Neon without explicit authorization.
 2. Apply migrations 001, 002 and 003 to that isolated database and verify the `schema_migrations` table.
