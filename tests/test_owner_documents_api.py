@@ -47,4 +47,4 @@ def test_member_lists_only_business_documents():
         {"document_id": str(document_id), "filename": "catalog.pdf", "file_type": "pdf", "status": "ready"}
     ]}
     query = db.scalars.call_args.args[0]
-    assert str(business_id) in str(query.compile(compile_kwargs={"literal_binds": True}))
+    assert business_id in query.compile().params.values()
