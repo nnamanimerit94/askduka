@@ -39,9 +39,9 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install database test dependencies
-        run: pip install pytest==9.1.1 SQLAlchemy==2.0.52 psycopg[binary]==3.3.5
+        run: pip install pytest==9.1.1 SQLAlchemy==2.0.52 psycopg[binary]==3.3.5 fastapi==0.141.1 httpx==0.28.1 python-multipart
       - name: Run owner authentication PostgreSQL integration test
-        run: python -m pytest tests/test_owner_auth_postgres_integration.py tests/test_owner_auth_migrations.py tests/test_owner_onboarding_postgres_integration.py -q
+        run: python -m pytest tests/test_owner_auth_postgres_integration.py tests/test_owner_auth_migrations.py tests/test_owner_onboarding_postgres_integration.py tests/test_owner_http_postgres_integration.py -q
   frontend-client-tests:
     runs-on: ubuntu-latest
     steps:
