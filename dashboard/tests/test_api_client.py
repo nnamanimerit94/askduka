@@ -92,10 +92,11 @@ def test_get_conversations(mock_get):
     mock_get.return_value = response
 
     result = api_client.get_conversations(
-        "test-token"
+        "test-token", "business-123"
     )
 
     assert result["conversations"] == []
+    assert mock_get.call_args.args[0].endswith("/api/businesses/business-123/conversations")
 
 
 @patch("api_client.requests.get")
