@@ -18,6 +18,8 @@ app = FastAPI(
 app.include_router(auth_router)
 app.include_router(business_router)
 app.include_router(documents_router)
+from backend.app.owner_conversations_api import router as conversations_router
+app.include_router(conversations_router)
 
 
 @app.get("/health")
