@@ -72,12 +72,12 @@ def upload_document(file, token: str, business_id: str) -> dict:
     return response.json()
 
 
-def get_conversations(token: str) -> dict:
+def get_conversations(token: str, business_id: str) -> dict:
     """Get customer conversations."""
 
     try:
         response = requests.get(
-            f"{API_URL}/api/conversations",
+            f"{API_URL}/api/businesses/{business_id}/conversations",
             headers={
                 "Authorization": f"Bearer {token}",
             },
