@@ -5,6 +5,7 @@ import uuid
 from backend.app.generation import generate_answer
 from backend.app.retrieval import retrieve
 from backend.app.webhook.whatsapp_client import send_text_message
+from backend.app.webhook.conversation_store import record_incoming_message
 
 logger = logging.getLogger(__name__)
 
@@ -66,6 +67,12 @@ def handle_message(message: dict) -> None:
     answer_result = generate_answer(customer_message, chunk_results)
 
     send_text_message(customer_phone, answer_result["answer"])
+
+    # Best-effort optional history: a storage outage must not suppress a reply.
+    try:
+        record_incoming_message(business_id, customer_phone, customer_message)
+    except Exception:
+        logger.exception("Could not store conversation summary")
 
 
 def _remember_message_id(message_id) -> None:
