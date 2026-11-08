@@ -3,6 +3,7 @@ import streamlit as st
 from api_client import (
     APIError,
     get_conversations,
+    list_businesses,
 )
 
 
@@ -24,6 +25,19 @@ if not token:
     st.stop()
 
 
+try:
+    businesses = list_businesses(token).get("businesses", [])
+except APIError as exc:
+    st.error(str(exc))
+    st.stop()
+
+if not businesses:
+    st.info("No businesses linked to this owner.")
+    st.stop()
+
+business_id = st.selectbox("Select business", [item["business_id"] for item in businesses])
+st.caption("Conversation history will appear when WhatsApp ingestion persistence is connected.")
+
 if st.button(
     "🔄 Refresh Conversations"
 ):
@@ -31,7 +45,7 @@ if st.button(
     try:
 
         result = get_conversations(
-            token
+            token, business_id
         )
 
         conversations = result.get(
