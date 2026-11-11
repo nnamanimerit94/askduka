@@ -51,6 +51,12 @@ async def receive_webhook(request: Request):
             value = change.get("value", {})
             if not isinstance(value, dict):
                 continue
+            # A single-business pilot must never answer events for another number.
+            expected_phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
+            actual_phone_id = (value.get("metadata") or {}).get("phone_number_id")
+            if expected_phone_id and actual_phone_id != expected_phone_id:
+                logger.warning("Ignoring WhatsApp event for an unconfigured phone number")
+                continue
             for message in value.get("messages", []):
                 if not isinstance(message, dict):
                     continue
