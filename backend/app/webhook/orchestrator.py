@@ -32,8 +32,6 @@ def handle_message(message: dict) -> None:
     if message_id in _seen_message_ids:
         return
 
-    _remember_message_id(message_id)
-
     if message.get("type") != "text":
         return
 
@@ -67,6 +65,8 @@ def handle_message(message: dict) -> None:
     answer_result = generate_answer(customer_message, chunk_results)
 
     send_text_message(customer_phone, answer_result["answer"])
+    # Record successful sends only: a transient transport failure must remain retryable.
+    _remember_message_id(message_id)
 
     # Best-effort optional history: a storage outage must not suppress a reply.
     try:
