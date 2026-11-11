@@ -17,6 +17,7 @@ from backend.app.db.owner_models import BusinessMembership, OwnerAccount
 from backend.app.db.session_models import OwnerSession
 from backend.app.owner_app import app
 from backend.app.owner_auth_api import db_session
+from backend.app.db.repository import search_document_chunks
 
 
 @pytest.mark.skipif(not os.getenv("ASKDUKA_TEST_DATABASE_URL"), reason="Requires isolated PostgreSQL")
@@ -85,6 +86,12 @@ def test_owner_document_http_upload_is_scoped(monkeypatch):
                 assert record.status == "completed"
                 assert record.has_embedding is True
                 assert record.dimensions == 384
+                matches = search_document_chunks(verify, businesses[0], [0.1] * 384, limit=5)
+                assert any(chunk.document_id == uuid.UUID(indexed.json()["document_id"]) for chunk, _ in matches)
+                assert all(chunk.document.business_id == businesses[0] for chunk, _ in matches)
+                assert all(0 <= similarity <= 1.00001 for _, similarity in matches)
+                other_business_matches = search_document_chunks(verify, businesses[1], [0.1] * 384, limit=5)
+                assert other_business_matches == []
             monkeypatch.delenv("ASKDUKA_ENABLE_UPLOAD_EMBEDDINGS", raising=False)
             listed = client.get(path, headers=first_headers)
             assert listed.status_code == 200
