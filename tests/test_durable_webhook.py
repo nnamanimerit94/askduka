@@ -63,6 +63,7 @@ def test_durable_failure_marks_failed_and_propagates(monkeypatch, orchestrator):
     marked = []
     receipts.mark_failed = lambda *args: marked.append("failed") or True
     receipts.mark_sent = lambda *args: marked.append("sent") or True
+    receipts.receipt_status = lambda *args: "failed"
     monkeypatch.setitem(sys.modules, "backend.app.db.database", database)
     monkeypatch.setitem(sys.modules, "backend.app.webhook.message_receipts", receipts)
     def fail(*args):
@@ -95,6 +96,8 @@ def test_inflight_duplicate_is_not_acknowledged(monkeypatch, orchestrator):
     receipts = types.ModuleType("backend.app.webhook.message_receipts")
     receipts.claim_message = lambda *args: False
     receipts.receipt_status = lambda *args: "processing"
+    receipts.mark_failed = lambda *args: True
+    receipts.mark_sent = lambda *args: True
     monkeypatch.setitem(sys.modules, "backend.app.db.database", database)
     monkeypatch.setitem(sys.modules, "backend.app.webhook.message_receipts", receipts)
     message = {"id": "wamid.processing", "type": "text", "from": "234800000", "text": {"body": "Price?"}}
