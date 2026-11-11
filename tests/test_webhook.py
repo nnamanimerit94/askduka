@@ -322,3 +322,21 @@ def test_failed_send_can_be_retried_with_same_message_id(
     assert first.status_code == 503
     assert second.status_code == third.status_code == 200
     assert len(attempts) == 2
+
+
+def test_webhook_ignores_other_whatsapp_phone_number(
+    client, whatsapp_env, stub_pipeline, monkeypatch
+):
+    monkeypatch.setenv("WHATSAPP_PHONE_NUMBER_ID", "expected-number")
+    response = client.post("/webhook", json=message_payload(message_id="wamid.wrong-number"))
+    assert response.status_code == 200
+    assert stub_pipeline["sent"] == []
+
+
+def test_webhook_accepts_configured_whatsapp_phone_number(
+    client, whatsapp_env, stub_pipeline, monkeypatch
+):
+    monkeypatch.setenv("WHATSAPP_PHONE_NUMBER_ID", "999888")
+    response = client.post("/webhook", json=message_payload(message_id="wamid.right-number"))
+    assert response.status_code == 200
+    assert len(stub_pipeline["sent"]) == 1
