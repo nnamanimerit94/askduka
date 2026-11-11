@@ -28,7 +28,9 @@ def test_new_message_claim_is_atomic_insert():
     session = FakeSession("wamid.1")
     assert claim_message(session, business_id, "wamid.1") is True
     sql, params = session.calls[0]
-    assert "ON CONFLICT (business_id, message_id) DO NOTHING" in sql
+    assert "ON CONFLICT (business_id, message_id) DO UPDATE" in sql
+    assert "WHERE whatsapp_message_receipts.status = 'failed'" in sql
+    assert "attempts = whatsapp_message_receipts.attempts + 1" in sql
     assert "RETURNING message_id" in sql
     assert params == {"business_id": business_id, "message_id": "wamid.1"}
 
