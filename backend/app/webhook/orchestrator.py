@@ -58,14 +58,18 @@ def handle_message(message: dict) -> None:
         if not isinstance(message_id, str) or not message_id.strip():
             raise ValueError("Durable receipts require a provider message ID")
         from backend.app.db.database import SessionLocal
-        from backend.app.webhook.message_receipts import claim_message, mark_failed, mark_sent
+        from backend.app.webhook.message_receipts import claim_message, mark_failed, mark_sent, receipt_status
         with SessionLocal() as session:
             claimed = claim_message(session, business_id, message_id)
             session.commit()
         if not claimed:
-            # Already processing or sent. A processing receipt may have been
-            # abandoned: recovery/lease policy is not implemented yet.
-            return
+            with SessionLocal() as session:
+                status = receipt_status(session, business_id, message_id)
+            if status == "sent":
+                return
+            # Processing/unknown must not be acknowledged as complete. Meta
+            # can redeliver; stale claims still require a separate recovery policy.
+            raise RuntimeError(f"WhatsApp receipt is not complete: {status}")
 
     try:
         _process_and_send(business_id, customer_phone, customer_message)

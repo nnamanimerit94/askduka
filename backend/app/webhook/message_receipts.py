@@ -61,3 +61,14 @@ def mark_failed(session, business_id: uuid.UUID, message_id: str) -> bool:
         {"business_id": business_id, "message_id": message_id},
     )
     return result.scalar_one_or_none() is not None
+
+
+def receipt_status(session, business_id: uuid.UUID, message_id: str) -> str | None:
+    """Read a receipt after a claim conflict; unknown status must not be acknowledged."""
+    return session.execute(
+        text("""
+            SELECT status FROM whatsapp_message_receipts
+            WHERE business_id = :business_id AND message_id = :message_id
+        """),
+        {"business_id": business_id, "message_id": message_id},
+    ).scalar_one_or_none()

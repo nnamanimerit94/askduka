@@ -37,6 +37,7 @@ def test_durable_claim_skips_duplicate_and_records_success(monkeypatch, orchestr
     receipts = types.ModuleType("backend.app.webhook.message_receipts")
     claims = iter([True, False])
     receipts.claim_message = lambda *args: next(claims)
+    receipts.receipt_status = lambda *args: "sent"
     marked = []
     receipts.mark_sent = lambda *args: marked.append("sent") or True
     receipts.mark_failed = lambda *args: marked.append("failed") or True
@@ -62,6 +63,7 @@ def test_durable_failure_marks_failed_and_propagates(monkeypatch, orchestrator):
     marked = []
     receipts.mark_failed = lambda *args: marked.append("failed") or True
     receipts.mark_sent = lambda *args: marked.append("sent") or True
+    receipts.receipt_status = lambda *args: "failed"
     monkeypatch.setitem(sys.modules, "backend.app.db.database", database)
     monkeypatch.setitem(sys.modules, "backend.app.webhook.message_receipts", receipts)
     def fail(*args):
@@ -83,4 +85,21 @@ def test_durable_mode_fails_closed_without_db(monkeypatch, orchestrator):
     monkeypatch.setitem(sys.modules, "backend.app.db.database", database)
     message = {"id": "wamid.db-down", "type": "text", "from": "234800000", "text": {"body": "Price?"}}
     with pytest.raises(RuntimeError, match="database unavailable"):
+        orchestrator.handle_message(message)
+
+
+def test_inflight_duplicate_is_not_acknowledged(monkeypatch, orchestrator):
+    monkeypatch.setenv("ASKDUKA_BUSINESS_ID", str(uuid.uuid4()))
+    monkeypatch.setenv("ASKDUKA_USE_DURABLE_RECEIPTS", "true")
+    database = types.ModuleType("backend.app.db.database")
+    database.SessionLocal = FakeSession
+    receipts = types.ModuleType("backend.app.webhook.message_receipts")
+    receipts.claim_message = lambda *args: False
+    receipts.receipt_status = lambda *args: "processing"
+    receipts.mark_failed = lambda *args: True
+    receipts.mark_sent = lambda *args: True
+    monkeypatch.setitem(sys.modules, "backend.app.db.database", database)
+    monkeypatch.setitem(sys.modules, "backend.app.webhook.message_receipts", receipts)
+    message = {"id": "wamid.processing", "type": "text", "from": "234800000", "text": {"body": "Price?"}}
+    with pytest.raises(RuntimeError, match="not complete: processing"):
         orchestrator.handle_message(message)
