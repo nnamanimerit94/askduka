@@ -41,11 +41,18 @@ async def receive_webhook(request: Request):
     if not isinstance(payload, dict):
         return JSONResponse(status_code=400, content={"detail": "Invalid payload."})
 
+    entries = payload.get("entry", [])
+    if not isinstance(entries, list):
+        return JSONResponse(status_code=400, content={"detail": "Invalid entry collection."})
+
     failed = False
-    for entry in payload.get("entry", []):
+    for entry in entries:
         if not isinstance(entry, dict):
             continue
-        for change in entry.get("changes", []):
+        changes = entry.get("changes", [])
+        if not isinstance(changes, list):
+            return JSONResponse(status_code=400, content={"detail": "Invalid changes collection."})
+        for change in changes:
             if not isinstance(change, dict):
                 continue
             value = change.get("value", {})
@@ -53,11 +60,15 @@ async def receive_webhook(request: Request):
                 continue
             # A single-business pilot must never answer events for another number.
             expected_phone_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
-            actual_phone_id = (value.get("metadata") or {}).get("phone_number_id")
+            metadata = value.get("metadata")
+            actual_phone_id = metadata.get("phone_number_id") if isinstance(metadata, dict) else None
             if expected_phone_id and actual_phone_id != expected_phone_id:
                 logger.warning("Ignoring WhatsApp event for an unconfigured phone number")
                 continue
-            for message in value.get("messages", []):
+            messages = value.get("messages", [])
+            if not isinstance(messages, list):
+                return JSONResponse(status_code=400, content={"detail": "Invalid messages collection."})
+            for message in messages:
                 if not isinstance(message, dict):
                     continue
                 try:
