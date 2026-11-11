@@ -103,3 +103,15 @@ def test_inflight_duplicate_is_not_acknowledged(monkeypatch, orchestrator):
     message = {"id": "wamid.processing", "type": "text", "from": "234800000", "text": {"body": "Price?"}}
     with pytest.raises(RuntimeError, match="not complete: processing"):
         orchestrator.handle_message(message)
+
+
+@pytest.mark.parametrize("business_id", [None, "not-a-uuid"])
+def test_durable_mode_rejects_missing_or_invalid_business_id(monkeypatch, orchestrator, business_id):
+    monkeypatch.setenv("ASKDUKA_USE_DURABLE_RECEIPTS", "true")
+    if business_id is None:
+        monkeypatch.delenv("ASKDUKA_BUSINESS_ID", raising=False)
+    else:
+        monkeypatch.setenv("ASKDUKA_BUSINESS_ID", business_id)
+    message = {"id": "wamid.misconfigured", "type": "text", "from": "234800000", "text": {"body": "Price?"}}
+    with pytest.raises(RuntimeError, match="requires a valid ASKDUKA_BUSINESS_ID"):
+        orchestrator.handle_message(message)

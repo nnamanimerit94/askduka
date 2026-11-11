@@ -1,6 +1,6 @@
 """Database primitives for durable inbound WhatsApp message receipts.
 
-Not yet wired into the webhook. Requires migration 006.
+Opt-in webhook integration requires migration 006 and ASKDUKA_USE_DURABLE_RECEIPTS=true.
 """
 import uuid
 

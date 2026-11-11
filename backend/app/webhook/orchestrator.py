@@ -50,6 +50,8 @@ def handle_message(message: dict) -> None:
             "ASKDUKA_BUSINESS_ID is not set to a valid UUID; "
             "cannot answer incoming messages."
         )
+        if durable:
+            raise RuntimeError("Durable WhatsApp processing requires a valid ASKDUKA_BUSINESS_ID")
         return
 
     # Import the database only when explicitly enabled. Missing schema or DB
