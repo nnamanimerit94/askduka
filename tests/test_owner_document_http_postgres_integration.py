@@ -4,10 +4,12 @@ Uses a disposable pgvector-enabled askduka_test database.
 """
 import os
 import uuid
+import sys
+import types
 
 import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
 from backend.app.db.models import Base, Business, Document, DocumentChunk
@@ -63,6 +65,27 @@ def test_owner_document_http_upload_is_scoped(monkeypatch):
                 "file": ("catalog.txt", b"Private business catalog", "text/plain"),
             })
             assert upload.status_code == 201, upload.text
+            fake_embeddings = types.ModuleType("backend.app.ingestion.embeddings")
+            fake_embeddings.embed_documents = lambda texts: [[0.1] * 384 for _ in texts]
+            monkeypatch.setitem(sys.modules, "backend.app.ingestion.embeddings", fake_embeddings)
+            monkeypatch.setenv("ASKDUKA_ENABLE_UPLOAD_EMBEDDINGS", "true")
+            indexed = client.post(path, headers=first_headers, files={
+                "file": ("indexed-catalog.txt", b"EliteBook 840 G8 costs 250000 naira", "text/plain"),
+            })
+            assert indexed.status_code == 201, indexed.text
+            assert indexed.json()["status"] == "completed"
+            with Session(engine) as verify:
+                record = verify.execute(text("""
+                    SELECT d.business_id, d.status, c.embedding IS NOT NULL AS has_embedding,
+                           vector_dims(c.embedding) AS dimensions
+                    FROM documents d JOIN document_chunks c ON c.document_id = d.id
+                    WHERE d.id = :document_id
+                """), {"document_id": uuid.UUID(indexed.json()["document_id"])}).one()
+                assert record.business_id == businesses[0]
+                assert record.status == "completed"
+                assert record.has_embedding is True
+                assert record.dimensions == 384
+            monkeypatch.delenv("ASKDUKA_ENABLE_UPLOAD_EMBEDDINGS", raising=False)
             listed = client.get(path, headers=first_headers)
             assert listed.status_code == 200
             assert any(doc["document_id"] == upload.json()["document_id"] for doc in listed.json()["documents"])
