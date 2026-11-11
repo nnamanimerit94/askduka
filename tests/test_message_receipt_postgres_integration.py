@@ -30,7 +30,9 @@ def test_receipt_claims_are_atomic_across_sessions():
                 INSERT INTO businesses (id, name) VALUES (:id, 'Receipt Test Business')
             """), {"id": business_id})
             sql = Path("database/migrations/006_whatsapp_message_receipts.sql").read_text()
-            for statement in sql.split(";"):
+            # Strip SQL comments before splitting statements (comments contain semicolons).
+            executable = "\n".join(line for line in sql.splitlines() if not line.lstrip().startswith("--"))
+            for statement in executable.split(";"):
                 if statement.strip():
                     connection.execute(text(statement))
         barrier = Barrier(2)
