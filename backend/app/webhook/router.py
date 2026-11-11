@@ -41,6 +41,7 @@ async def receive_webhook(request: Request):
     if not isinstance(payload, dict):
         return JSONResponse(status_code=400, content={"detail": "Invalid payload."})
 
+    failed = False
     for entry in payload.get("entry", []):
         if not isinstance(entry, dict):
             continue
@@ -56,5 +57,9 @@ async def receive_webhook(request: Request):
                 try:
                     handle_message(message)
                 except Exception:
+                    failed = True
                     logger.exception("Failed to handle message %s", message.get("id"))
+    if failed:
+        # A non-2xx response allows Meta to redeliver the event.
+        return JSONResponse(status_code=503, content={"detail": "Message processing temporarily unavailable."})
     return JSONResponse({"status": "ok"})
