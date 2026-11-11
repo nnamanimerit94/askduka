@@ -10,8 +10,9 @@ from sqlalchemy import text
 def claim_message(session, business_id: uuid.UUID, message_id: str) -> bool:
     """Atomically claim a previously unseen message across workers.
 
-    Returns False for any existing receipt (including failed receipts).
-    Retrying failed claims and lease recovery are intentionally not implemented.
+    Atomically reclaims explicitly failed receipts, incrementing attempts.
+    Returns False for processing or sent receipts. Abandoned processing
+    leases and crash recovery are intentionally not implemented.
     """
     if not isinstance(business_id, uuid.UUID) or not isinstance(message_id, str) or not message_id.strip():
         raise ValueError("A valid business UUID and nonempty provider message ID are required")
@@ -20,7 +21,11 @@ def claim_message(session, business_id: uuid.UUID, message_id: str) -> bool:
             INSERT INTO whatsapp_message_receipts
                 (business_id, message_id, status, attempts)
             VALUES (:business_id, :message_id, 'processing', 1)
-            ON CONFLICT (business_id, message_id) DO NOTHING
+            ON CONFLICT (business_id, message_id) DO UPDATE
+            SET status = 'processing',
+                attempts = whatsapp_message_receipts.attempts + 1,
+                updated_at = NOW()
+            WHERE whatsapp_message_receipts.status = 'failed'
             RETURNING message_id
         """),
         {"business_id": business_id, "message_id": message_id},
@@ -44,7 +49,7 @@ def mark_sent(session, business_id: uuid.UUID, message_id: str) -> bool:
 
 
 def mark_failed(session, business_id: uuid.UUID, message_id: str) -> bool:
-    """Record a failed attempt; retry/reclaim policy is future work."""
+    """Record a failed attempt so a later delivery can atomically reclaim it."""
     result = session.execute(
         text("""
             UPDATE whatsapp_message_receipts
