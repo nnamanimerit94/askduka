@@ -340,3 +340,31 @@ def test_webhook_accepts_configured_whatsapp_phone_number(
     response = client.post("/webhook", json=message_payload(message_id="wamid.right-number"))
     assert response.status_code == 200
     assert len(stub_pipeline["sent"]) == 1
+
+
+@pytest.mark.parametrize("field,value", [
+    ("entry", None),
+    ("entry", {"unexpected": "object"}),
+    ("changes", "not-a-list"),
+    ("messages", {"id": "unexpected"}),
+])
+def test_webhook_rejects_malformed_collections(client, stub_pipeline, field, value):
+    payload = message_payload(message_id="wamid.malformed")
+    if field == "entry":
+        payload["entry"] = value
+    elif field == "changes":
+        payload["entry"][0]["changes"] = value
+    else:
+        payload["entry"][0]["changes"][0]["value"]["messages"] = value
+    response = client.post("/webhook", json=payload)
+    assert response.status_code == 400
+    assert stub_pipeline["sent"] == []
+
+
+def test_webhook_handles_non_object_metadata_without_reply(client, whatsapp_env, stub_pipeline, monkeypatch):
+    monkeypatch.setenv("WHATSAPP_PHONE_NUMBER_ID", "999888")
+    payload = message_payload(message_id="wamid.bad-metadata")
+    payload["entry"][0]["changes"][0]["value"]["metadata"] = "invalid"
+    response = client.post("/webhook", json=payload)
+    assert response.status_code == 200
+    assert stub_pipeline["sent"] == []
