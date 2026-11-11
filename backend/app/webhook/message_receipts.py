@@ -72,3 +72,26 @@ def receipt_status(session, business_id: uuid.UUID, message_id: str) -> str | No
         """),
         {"business_id": business_id, "message_id": message_id},
     ).scalar_one_or_none()
+
+
+def list_stale_processing_receipts(session, older_than_minutes: int = 15, limit: int = 100):
+    """Read-only operational view of potentially abandoned receipts.
+
+    No automatic retry is safe: a WhatsApp send may have succeeded before
+    the worker crashed without persisting its sent status.
+    """
+    if type(older_than_minutes) is not int or older_than_minutes < 1:
+        raise ValueError("older_than_minutes must be a positive integer")
+    if type(limit) is not int or not 1 <= limit <= 1000:
+        raise ValueError("limit must be between 1 and 1000")
+    return session.execute(
+        text("""
+            SELECT business_id, message_id, attempts, created_at, updated_at
+            FROM whatsapp_message_receipts
+            WHERE status = 'processing'
+              AND updated_at < NOW() - (:minutes * INTERVAL '1 minute')
+            ORDER BY updated_at ASC
+            LIMIT :limit
+        """),
+        {"minutes": older_than_minutes, "limit": limit},
+    ).mappings().all()

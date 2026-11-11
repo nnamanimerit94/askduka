@@ -9,7 +9,7 @@ import pytest
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import Session
 
-from backend.app.webhook.message_receipts import claim_message, mark_failed, mark_sent
+from backend.app.webhook.message_receipts import claim_message, mark_failed, mark_sent, list_stale_processing_receipts
 
 
 @pytest.mark.skipif(not os.getenv("ASKDUKA_TEST_DATABASE_URL"), reason="Requires isolated PostgreSQL")
@@ -47,6 +47,14 @@ def test_receipt_claims_are_atomic_across_sessions():
         assert sorted(outcomes) == [False, True]
         with Session(engine) as session:
             assert claim_message(session, business_id, message_id) is False
+            session.execute(text("""
+                UPDATE whatsapp_message_receipts SET updated_at = NOW() - INTERVAL '30 minutes'
+                WHERE business_id = :business_id AND message_id = :message_id
+            """), {"business_id": business_id, "message_id": message_id})
+            session.commit()
+        with Session(engine) as session:
+            stale = list_stale_processing_receipts(session, older_than_minutes=15)
+            assert any(row["message_id"] == message_id for row in stale)
             assert mark_failed(session, business_id, message_id) is True
             session.commit()
         with Session(engine) as session:
