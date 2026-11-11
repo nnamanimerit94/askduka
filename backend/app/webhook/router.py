@@ -71,6 +71,11 @@ async def receive_webhook(request: Request):
             for message in messages:
                 if not isinstance(message, dict):
                     continue
+                if message.get("type") == "text":
+                    text_payload = message.get("text")
+                    if not isinstance(text_payload, dict) or not isinstance(text_payload.get("body"), str):
+                        logger.warning("Rejecting malformed WhatsApp text message")
+                        return JSONResponse(status_code=400, content={"detail": "Invalid text message."})
                 try:
                     handle_message(message)
                 except Exception:

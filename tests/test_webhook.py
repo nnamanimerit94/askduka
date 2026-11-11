@@ -368,3 +368,12 @@ def test_webhook_handles_non_object_metadata_without_reply(client, whatsapp_env,
     response = client.post("/webhook", json=payload)
     assert response.status_code == 200
     assert stub_pipeline["sent"] == []
+
+
+@pytest.mark.parametrize("text_payload", [None, "not-an-object", {"body": None}, {"body": ["bad"]}])
+def test_webhook_rejects_malformed_text_payload(client, whatsapp_env, stub_pipeline, text_payload):
+    payload = message_payload(message_id="wamid.invalid-text")
+    payload["entry"][0]["changes"][0]["value"]["messages"][0]["text"] = text_payload
+    response = client.post("/webhook", json=payload)
+    assert response.status_code == 400
+    assert stub_pipeline["sent"] == []
