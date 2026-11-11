@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from backend.app.db.models import Document, DocumentChunk
 from backend.app.owner_auth_api import db_session
 from backend.app.owner_business_api import require_business_owner
+from backend.app.owner_document_indexing import index_uploaded_chunks, vector_indexing_enabled
 
 
 router = APIRouter(prefix="/api/businesses", tags=["owner-documents"])
@@ -64,7 +65,20 @@ async def upload_business_text_document(
     document = Document(business_id=business_id, filename=filename, file_type="txt", status="ready")
     db.add(document)
     db.flush()
+    chunks = []
     for index, offset in enumerate(range(0, len(content), 1500)):
-        db.add(DocumentChunk(document_id=document.id, chunk_index=index, chunk_text=content[offset:offset + 1500], chunk_metadata={}))
+        chunk = DocumentChunk(document_id=document.id, chunk_index=index, chunk_text=content[offset:offset + 1500], chunk_metadata={})
+        db.add(chunk)
+        chunks.append(chunk)
+    if vector_indexing_enabled():
+        try:
+            db.flush()
+            index_uploaded_chunks(db, chunks)
+            document.status = "completed"
+        except Exception:
+            db.rollback()
+            raise HTTPException(status_code=503, detail="Document indexing failed; upload was rolled back")
+    else:
+        document.status = "uploaded"
     db.commit()
-    return {"document_id": str(document.id), "status": "ready"}
+    return {"document_id": str(document.id), "status": document.status}
