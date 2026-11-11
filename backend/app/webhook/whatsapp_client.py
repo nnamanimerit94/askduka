@@ -14,6 +14,15 @@ def send_text_message(to: str, body: str) -> dict:
     phone_number_id = os.getenv("WHATSAPP_PHONE_NUMBER_ID")
     api_version = os.getenv("WHATSAPP_API_VERSION", DEFAULT_API_VERSION)
 
+    if not access_token or not access_token.strip():
+        raise ValueError("WHATSAPP_ACCESS_TOKEN must be configured")
+    if not phone_number_id or not phone_number_id.strip():
+        raise ValueError("WHATSAPP_PHONE_NUMBER_ID must be configured")
+    if not to or not to.strip():
+        raise ValueError("WhatsApp recipient must be provided")
+    if not body or not body.strip():
+        raise ValueError("WhatsApp message body must be provided")
+
     url = f"{GRAPH_API_URL}/{api_version}/{phone_number_id}/messages"
 
     payload = {
