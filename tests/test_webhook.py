@@ -303,3 +303,21 @@ def test_processing_failure_still_acknowledges(
     response = client.post("/webhook", json=message_payload())
 
     assert response.status_code == 200
+
+
+def test_failed_send_can_be_retried_with_same_message_id(
+    client, whatsapp_env, monkeypatch
+):
+    attempts = []
+    monkeypatch.setattr(orchestrator, "retrieve", lambda business_id, query, limit=5: [])
+    def sometimes_fails(phone, answer):
+        attempts.append((phone, answer))
+        if len(attempts) == 1:
+            raise RuntimeError("temporary WhatsApp failure")
+    monkeypatch.setattr(orchestrator, "send_text_message", sometimes_fails)
+    payload = message_payload(message_id="wamid.retryable")
+    first = client.post("/webhook", json=payload)
+    second = client.post("/webhook", json=payload)
+    third = client.post("/webhook", json=payload)
+    assert first.status_code == second.status_code == third.status_code == 200
+    assert len(attempts) == 2
