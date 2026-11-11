@@ -5,7 +5,16 @@ import uuid
 
 import pytest
 
-from backend.app.webhook import orchestrator
+import importlib
+
+
+@pytest.fixture
+def orchestrator(monkeypatch):
+    retrieval = types.ModuleType("backend.app.retrieval")
+    retrieval.retrieve = lambda *args: []
+    monkeypatch.setitem(sys.modules, "backend.app.retrieval", retrieval)
+    from backend.app.webhook import orchestrator as module
+    return importlib.reload(module)
 
 
 class FakeSession:
@@ -19,7 +28,7 @@ class FakeSession:
         pass
 
 
-def test_durable_claim_skips_duplicate_and_records_success(monkeypatch):
+def test_durable_claim_skips_duplicate_and_records_success(monkeypatch, orchestrator):
     business_id = uuid.uuid4()
     monkeypatch.setenv("ASKDUKA_BUSINESS_ID", str(business_id))
     monkeypatch.setenv("ASKDUKA_USE_DURABLE_RECEIPTS", "true")
@@ -43,7 +52,7 @@ def test_durable_claim_skips_duplicate_and_records_success(monkeypatch):
     assert marked == ["sent"]
 
 
-def test_durable_failure_marks_failed_and_propagates(monkeypatch):
+def test_durable_failure_marks_failed_and_propagates(monkeypatch, orchestrator):
     monkeypatch.setenv("ASKDUKA_BUSINESS_ID", str(uuid.uuid4()))
     monkeypatch.setenv("ASKDUKA_USE_DURABLE_RECEIPTS", "true")
     database = types.ModuleType("backend.app.db.database")
@@ -64,7 +73,7 @@ def test_durable_failure_marks_failed_and_propagates(monkeypatch):
     assert marked == ["failed"]
 
 
-def test_durable_mode_fails_closed_without_db(monkeypatch):
+def test_durable_mode_fails_closed_without_db(monkeypatch, orchestrator):
     monkeypatch.setenv("ASKDUKA_BUSINESS_ID", str(uuid.uuid4()))
     monkeypatch.setenv("ASKDUKA_USE_DURABLE_RECEIPTS", "true")
     database = types.ModuleType("backend.app.db.database")
