@@ -115,3 +115,31 @@ def test_durable_mode_rejects_missing_or_invalid_business_id(monkeypatch, orches
     message = {"id": "wamid.misconfigured", "type": "text", "from": "234800000", "text": {"body": "Price?"}}
     with pytest.raises(RuntimeError, match="requires a valid ASKDUKA_BUSINESS_ID"):
         orchestrator.handle_message(message)
+
+
+def test_durable_sent_transition_failure_is_not_acknowledged(monkeypatch, orchestrator):
+    monkeypatch.setenv("ASKDUKA_BUSINESS_ID", str(uuid.uuid4()))
+    monkeypatch.setenv("ASKDUKA_USE_DURABLE_RECEIPTS", "true")
+    database = types.ModuleType("backend.app.db.database")
+    database.SessionLocal = FakeSession
+    receipts = types.ModuleType("backend.app.webhook.message_receipts")
+    receipts.claim_message = lambda *args: True
+    receipts.mark_sent = lambda *args: False
+    receipts.mark_failed = lambda *args: True
+    receipts.receipt_status = lambda *args: "processing"
+    monkeypatch.setitem(sys.modules, "backend.app.db.database", database)
+    monkeypatch.setitem(sys.modules, "backend.app.webhook.message_receipts", receipts)
+    sent = []
+    monkeypatch.setattr(orchestrator, "_process_and_send", lambda *args: sent.append(args))
+    message = {"id": "wamid.transition", "type": "text", "from": "234800000", "text": {"body": "Price?"}}
+    with pytest.raises(RuntimeError, match="lost processing state"):
+        orchestrator.handle_message(message)
+    assert len(sent) == 1
+
+
+def test_durable_rejects_missing_provider_message_id_before_claim(monkeypatch, orchestrator):
+    monkeypatch.setenv("ASKDUKA_BUSINESS_ID", str(uuid.uuid4()))
+    monkeypatch.setenv("ASKDUKA_USE_DURABLE_RECEIPTS", "true")
+    message = {"type": "text", "from": "234800000", "text": {"body": "Price?"}}
+    with pytest.raises(ValueError, match="provider message ID"):
+        orchestrator.handle_message(message)
