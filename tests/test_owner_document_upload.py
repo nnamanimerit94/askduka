@@ -48,7 +48,7 @@ def test_upload_persists_text_chunks_for_authorized_business():
     db.reset_mock()
     response = post_document("catalog.txt", b"AskDuka catalog")
     assert response.status_code == 201
-    assert response.json()["status"] == "ready"
+    assert response.json()["status"] == "uploaded"
     assert db.flush.called
     assert db.commit.called
     assert db.add.call_count >= 2
