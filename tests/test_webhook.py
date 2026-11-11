@@ -280,7 +280,7 @@ def test_non_text_message_is_ignored(
     assert stub_pipeline["sent"] == []
 
 
-def test_processing_failure_still_acknowledges(
+def test_processing_failure_returns_retryable_status(
     client,
     whatsapp_env,
     monkeypatch,
@@ -302,7 +302,7 @@ def test_processing_failure_still_acknowledges(
 
     response = client.post("/webhook", json=message_payload())
 
-    assert response.status_code == 200
+    assert response.status_code == 503
 
 
 def test_failed_send_can_be_retried_with_same_message_id(
@@ -319,5 +319,6 @@ def test_failed_send_can_be_retried_with_same_message_id(
     first = client.post("/webhook", json=payload)
     second = client.post("/webhook", json=payload)
     third = client.post("/webhook", json=payload)
-    assert first.status_code == second.status_code == third.status_code == 200
+    assert first.status_code == 503
+    assert second.status_code == third.status_code == 200
     assert len(attempts) == 2
