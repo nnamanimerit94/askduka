@@ -29,7 +29,8 @@ def handle_message(message: dict) -> None:
     """
     message_id = message.get("id")
 
-    if message_id in _seen_message_ids:
+    durable = os.getenv("ASKDUKA_USE_DURABLE_RECEIPTS", "").lower() == "true"
+    if not durable and message_id in _seen_message_ids:
         return
 
     if message.get("type") != "text":
@@ -51,6 +52,45 @@ def handle_message(message: dict) -> None:
         )
         return
 
+    # Import the database only when explicitly enabled. Missing schema or DB
+    # configuration must fail closed and let the webhook return HTTP 503.
+    if durable:
+        if not isinstance(message_id, str) or not message_id.strip():
+            raise ValueError("Durable receipts require a provider message ID")
+        from backend.app.db.database import SessionLocal
+        from backend.app.webhook.message_receipts import claim_message, mark_failed, mark_sent
+        with SessionLocal() as session:
+            claimed = claim_message(session, business_id, message_id)
+            session.commit()
+        if not claimed:
+            # Already processing or sent. A processing receipt may have been
+            # abandoned: recovery/lease policy is not implemented yet.
+            return
+
+    try:
+        _process_and_send(business_id, customer_phone, customer_message)
+    except Exception:
+        if durable:
+            with SessionLocal() as session:
+                mark_failed(session, business_id, message_id)
+                session.commit()
+        raise
+    if durable:
+        with SessionLocal() as session:
+            if not mark_sent(session, business_id, message_id):
+                raise RuntimeError("WhatsApp receipt lost processing state")
+            session.commit()
+    else:
+        _remember_message_id(message_id)
+
+    # Best-effort optional history: a storage outage must not suppress a reply.
+    try:
+        record_incoming_message(business_id, customer_phone, customer_message)
+    except Exception:
+        logger.exception("Could not store conversation summary")
+
+
+def _process_and_send(business_id, customer_phone, customer_message):
     results = retrieve(business_id, customer_message)
 
     chunk_results = [
@@ -65,14 +105,6 @@ def handle_message(message: dict) -> None:
     answer_result = generate_answer(customer_message, chunk_results)
 
     send_text_message(customer_phone, answer_result["answer"])
-    # Record successful sends only: a transient transport failure must remain retryable.
-    _remember_message_id(message_id)
-
-    # Best-effort optional history: a storage outage must not suppress a reply.
-    try:
-        record_incoming_message(business_id, customer_phone, customer_message)
-    except Exception:
-        logger.exception("Could not store conversation summary")
 
 
 def _remember_message_id(message_id) -> None:
