@@ -46,6 +46,14 @@ def test_receipt_claims_are_atomic_across_sessions():
             outcomes = list(executor.map(attempt_claim, range(2)))
         assert sorted(outcomes) == [False, True]
         with Session(engine) as session:
+            assert claim_message(session, business_id, message_id) is False
+            assert mark_failed(session, business_id, message_id) is True
+            session.commit()
+        with Session(engine) as session:
+            assert claim_message(session, business_id, message_id) is True
+            session.commit()
+        with Session(engine) as session:
+            assert claim_message(session, business_id, message_id) is False
             assert mark_sent(session, business_id, message_id) is True
             session.commit()
         with Session(engine) as session:
@@ -58,7 +66,7 @@ def test_receipt_claims_are_atomic_across_sessions():
                 WHERE business_id = :business_id AND message_id = :message_id
             """), {"business_id": business_id, "message_id": message_id}).one()
             assert receipt.status == "sent"
-            assert receipt.attempts == 1
+            assert receipt.attempts == 2
     finally:
         with engine.begin() as connection:
             connection.execute(text("DELETE FROM businesses WHERE id = :id"), {"id": business_id})
